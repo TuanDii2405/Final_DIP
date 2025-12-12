@@ -1,0 +1,9 @@
+{
+  "train_images": 6472,
+  "train_captions": 32360,
+  "test_images": 1619,
+  "test_captions": 8095,
+  "total_images": 8091,
+  "total_captions": 40455,
+  "captions_per_image": 5.0
+}

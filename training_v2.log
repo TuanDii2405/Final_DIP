@@ -1,0 +1,43 @@
+Training started at 2025-12-10 17:30:38.243683
+Configuration: {
+  "num_classes": 91,
+  "vocab_size": 2702,
+  "embed_dim": 512,
+  "embedding_dim": 512,
+  "hidden_dim": 512,
+  "num_relationship_layers": 3,
+  "num_spatial_rels": 8,
+  "num_semantic_rels": 50,
+  "pretrained_backbone": true,
+  "batch_size": 1,
+  "num_epochs": 20,
+  "learning_rate": 0.0001,
+  "weight_decay": 1e-05,
+  "max_caption_len": 20,
+  "checkpoint_dir": "checkpoints_v2",
+  "log_file": "training_v2.log"
+}
+
+Epoch 01 | Train Loss: 3.5656 (Cap: 3.5657, Det: 0.0000) | Time: 7520.2s | LR: 1.00e-04
+Epoch 02 | Train Loss: 3.0741 (Cap: 3.0741, Det: 0.0000) | Time: 9595.7s | LR: 1.00e-04
+Training started at 2025-12-11 00:48:18.828334
+Configuration: {
+  "num_classes": 91,
+  "vocab_size": 2702,
+  "embed_dim": 512,
+  "embedding_dim": 512,
+  "hidden_dim": 512,
+  "num_relationship_layers": 3,
+  "num_spatial_rels": 8,
+  "num_semantic_rels": 50,
+  "pretrained_backbone": true,
+  "batch_size": 1,
+  "num_epochs": 20,
+  "learning_rate": 0.0001,
+  "weight_decay": 1e-05,
+  "max_caption_len": 20,
+  "checkpoint_dir": "checkpoints_v2",
+  "log_file": "training_v2.log"
+}
+
+Epoch 03 | Train Loss: 2.9263 (Cap: 2.9263, Det: 0.0000) | Time: 8475.7s | LR: 1.00e-04

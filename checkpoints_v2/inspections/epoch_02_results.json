@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "path": "checkpoints_v2\\epoch_02.pth",
+    "epoch_in_checkpoint": 2,
+    "train_loss": 3.0740974956522473,
+    "config": {
+      "num_classes": 91,
+      "vocab_size": 2702,
+      "embed_dim": 512,
+      "embedding_dim": 512,
+      "hidden_dim": 512,
+      "num_relationship_layers": 3,
+      "num_spatial_rels": 8,
+      "num_semantic_rels": 50,
+      "pretrained_backbone": true,
+      "batch_size": 1,
+      "num_epochs": 20,
+      "learning_rate": 0.0001,
+      "weight_decay": 1e-05,
+      "max_caption_len": 20,
+      "checkpoint_dir": "checkpoints_v2",
+      "log_file": "training_v2.log"
+    }
+  },
+  "results": [
+    {
+      "image": "data\\test\\images\\1003163366_44323f5815.jpg",
+      "caption": "a man in a red shirt is standing on a <unk> .",
+      "num_objects": 0,
+      "boxes_preview": []
+    },
+    {
+      "image": "data\\test\\images\\1007129816_e794419615.jpg",
+      "caption": "a man in a red shirt is standing on a <unk> .",
+      "num_objects": 0,
+      "boxes_preview": []
+    },
+    {
+      "image": "data\\test\\images\\1015584366_dfcec3c85a.jpg",
+      "caption": "a man in a red shirt is standing on a <unk> .",
+      "num_objects": 0,
+      "boxes_preview": []
+    }
+  ]
+}

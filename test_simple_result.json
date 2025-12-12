@@ -1,0 +1,6 @@
+{
+  "image": "3053785363_50392f2c53.jpg",
+  "ground_truth": "a man and woman wearing Mickey Mouse ears in a crowd .",
+  "status": "Model loaded, inference code needed",
+  "note": "Model đã train 9 epochs, checkpoint best_12ep.pth"
+}
