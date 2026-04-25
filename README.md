@@ -590,3 +590,324 @@ Tài khoản người dùng trải qua các trạng thái sau trong vòng đời
 | `locked`   | Tạm thời bị vô hiệu hóa         | Không     | Không     |
 
 ---
+## Chuong 3. Phan tich va thiet ke he thong
+
+### 3.1 Sơ đồ thực thể kết hợp (ERD) và chuyển ERD sang lược đồ cơ sở dữ liệu
+
+#### 3.1.1 Cơ sở xây dựng ERD
+
+ERD được xây dựng từ mô hình dữ liệu thực tế của hệ thống backend chạy trên SQLite.
+Trong phiên bản hiện tại, dữ liệu nghiệp vụ tập trung vào 3 thực thể lõi:
+
+1. users: lưu thông tin tài khoản, định danh, trạng thái duyệt và dữ liệu KYC.
+2. bank_transactions: lưu lịch sử chuyển khoản nội địa giữa hai tài khoản.
+3. deleted_profiles: lưu bản sao hồ sơ khi admin xóa người dùng (archive phục vụ truy vết).
+
+Mặc dù SQLite cho phép không khai báo ràng buộc khóa ngoại vật lý, mô hình logic của hệ thống vẫn tồn tại các liên kết rõ ràng giữa các thực thể.
+Vì vậy, trong phần phân tích ERD sẽ thể hiện cả:
+
+- Ràng buộc logic (mức thiết kế nghiệp vụ).
+- Ràng buộc vật lý đã có trong schema (PK, UNIQUE, chỉ mục).
+
+#### 3.1.2 Xác định thực thể và thuộc tính
+
+**Thực thể 1: USERS**
+
+USERS là thực thể trung tâm của toàn hệ thống. Mỗi bản ghi biểu diễn một tài khoản có thể thuộc vai trò user hoặc admin.
+
+**Bảng 3.1 - Thuộc tính chính của USERS**
+
+| Thuộc tính            | Kiểu dữ liệu | Ràng buộc                           | Ý nghĩa                                                   |
+| --------------------- | ------------ | ----------------------------------- | --------------------------------------------------------- |
+| id                    | INTEGER      | PK, AUTOINCREMENT                   | Khóa chính định danh người dùng                           |
+| username              | TEXT         | NOT NULL, UNIQUE                    | Tên đăng nhập duy nhất                                    |
+| password_hash         | TEXT         | NOT NULL                            | Mật khẩu đã băm                                           |
+| role                  | TEXT         | NOT NULL, DEFAULT 'user'            | Vai trò tài khoản (admin/user)                            |
+| approval_status       | TEXT         | NOT NULL, DEFAULT 'approved'        | Trạng thái nghiệp vụ: pending, approved, rejected, locked |
+| account_number        | TEXT         | UNIQUE                              | Số tài khoản ngân hàng nội bộ                             |
+| balance               | INTEGER      | NOT NULL, DEFAULT 500000            | Số dư hiện tại                                            |
+| full_name             | TEXT         | NULL                                | Họ tên người dùng                                         |
+| face_encoding         | TEXT         | NULL                                | Dữ liệu embedding khuôn mặt                               |
+| is_locked             | INTEGER      | NOT NULL, DEFAULT 0                 | Cờ khóa cũ (legacy), logic mới ưu tiên approval_status    |
+| email                 | TEXT         | NULL                                | Email liên hệ                                             |
+| phone                 | TEXT         | NULL                                | Số điện thoại                                             |
+| birth_date            | TEXT         | NULL                                | Ngày sinh                                                 |
+| cccd_number           | TEXT         | UNIQUE INDEX                        | Số CCCD (duy nhất toàn hệ thống)                          |
+| gender                | TEXT         | NULL                                | Giới tính                                                 |
+| hometown              | TEXT         | NULL                                | Quê quán                                                  |
+| residence             | TEXT         | NULL                                | Nơi thường trú                                            |
+| nationality           | TEXT         | NULL                                | Quốc tịch                                                 |
+| valid_until           | TEXT         | NULL                                | Ngày hết hạn CCCD                                         |
+| issued_date           | TEXT         | NULL                                | Ngày cấp CCCD                                             |
+| issued_place          | TEXT         | NULL                                | Nơi cấp CCCD                                              |
+| face_image_path       | TEXT         | NULL                                | Đường dẫn ảnh khuôn mặt                                   |
+| cccd_front_image_path | TEXT         | NULL                                | Đường dẫn ảnh CCCD mặt trước                              |
+| cccd_back_image_path  | TEXT         | NULL                                | Đường dẫn ảnh CCCD mặt sau                                |
+| created_at            | TEXT         | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo bản ghi                                     |
+| updated_at            | TEXT         | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật gần nhất                               |
+
+**Thực thể 2: BANK_TRANSACTIONS**
+
+BANK_TRANSACTIONS lưu mọi giao dịch chuyển khoản nội địa phát sinh trong hệ thống.
+
+**Bảng 3.2 - Thuộc tính chính của BANK_TRANSACTIONS**
+
+| Thuộc tính              | Kiểu dữ liệu | Ràng buộc                           | Ý nghĩa                                       |
+| ----------------------- | ------------ | ----------------------------------- | --------------------------------------------- |
+| id                      | INTEGER      | PK, AUTOINCREMENT                   | Khóa chính giao dịch                          |
+| sender_user_id          | INTEGER      | NOT NULL                            | ID người gửi (tham chiếu logic đến users.id)  |
+| receiver_user_id        | INTEGER      | NOT NULL                            | ID người nhận (tham chiếu logic đến users.id) |
+| sender_account_number   | TEXT         | NOT NULL                            | Số tài khoản nguồn tại thời điểm giao dịch    |
+| receiver_account_number | TEXT         | NOT NULL                            | Số tài khoản đích tại thời điểm giao dịch     |
+| amount                  | INTEGER      | NOT NULL                            | Số tiền giao dịch                             |
+| note                    | TEXT         | NULL                                | Nội dung chuyển khoản                         |
+| created_at              | TEXT         | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo giao dịch                       |
+
+**Thực thể 3: DELETED_PROFILES**
+
+DELETED_PROFILES đóng vai trò nhật ký lưu trữ hồ sơ đã xóa, hỗ trợ kiểm tra và đối soát sau này.
+
+**Bảng 3.3 - Thuộc tính chính của DELETED_PROFILES**
+
+| Thuộc tính       | Kiểu dữ liệu | Ràng buộc                           | Ý nghĩa                                                |
+| ---------------- | ------------ | ----------------------------------- | ------------------------------------------------------ |
+| id               | INTEGER      | PK, AUTOINCREMENT                   | Khóa chính bản ghi archive                             |
+| original_user_id | INTEGER      | NULL                                | ID người dùng gốc trước khi bị xóa                     |
+| username         | TEXT         | NULL                                | Username của tài khoản bị xóa                          |
+| deleted_by       | INTEGER      | NULL                                | ID admin thực hiện xóa (tham chiếu logic đến users.id) |
+| deleted_at       | TEXT         | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm xóa                                          |
+| profile_json     | TEXT         | NOT NULL                            | Bản chụp JSON toàn bộ hồ sơ tại thời điểm xóa          |
+
+#### 3.1.3 Xác định các mối quan hệ trong ERD
+
+Từ ba thực thể trên, hệ thống có các quan hệ nghiệp vụ sau:
+
+1. USERS (vai trò người gửi) - BANK_TRANSACTIONS:
+
+- Một người dùng có thể phát sinh nhiều giao dịch gửi.
+- Mỗi giao dịch gửi chỉ thuộc về đúng một người gửi.
+- Bội số: USERS 1 - N BANK_TRANSACTIONS (theo sender_user_id).
+
+2. USERS (vai trò người nhận) - BANK_TRANSACTIONS:
+
+- Một người dùng có thể nhận nhiều giao dịch.
+- Mỗi giao dịch nhận chỉ thuộc về đúng một người nhận.
+- Bội số: USERS 1 - N BANK_TRANSACTIONS (theo receiver_user_id).
+
+3. USERS (vai trò admin) - DELETED_PROFILES:
+
+- Một admin có thể xóa nhiều hồ sơ.
+- Mỗi bản ghi archive có tối đa một người xóa.
+- Bội số: USERS 1 - N DELETED_PROFILES (theo deleted_by).
+
+4. USERS (hồ sơ gốc) - DELETED_PROFILES:
+
+- Một tài khoản người dùng khi bị xóa sẽ tạo một bản ghi archive tương ứng.
+- Về logic có thể xem là 1 - 0..1 theo từng vòng đời tài khoản.
+- Trong thiết kế lưu vết, biểu diễn thành USERS 1 - N DELETED_PROFILES (theo original_user_id) để vẫn tương thích trường hợp tái tạo tài khoản cùng username ở chu kỳ khác.
+
+#### 3.1.4 Sơ đồ ERD mức logic
+
+Sơ đồ dưới đây mô tả thực thể, khóa và liên kết ở mức logic nghiệp vụ.
+
+```text
++-------------------------+
+|          USERS          |
++-------------------------+
+| PK id                   |
+| UQ username             |
+| password_hash           |
+| role                    |
+| approval_status         |
+| UQ account_number       |
+| balance                 |
+| ... KYC fields ...      |
+| UQ cccd_number (index)  |
+| created_at, updated_at  |
++-------------------------+
+    | 1                           1 |
+    |                               |
+    | N (sender_user_id)            | N (receiver_user_id)
+    v                               v
++-------------------------+
+|    BANK_TRANSACTIONS    |
++-------------------------+
+| PK id                   |
+| sender_user_id          | --> USERS.id (logic FK)
+| receiver_user_id        | --> USERS.id (logic FK)
+| sender_account_number   |
+| receiver_account_number |
+| amount, note            |
+| created_at              |
++-------------------------+
+
+USERS.id (admin) 1 -------- N DELETED_PROFILES.deleted_by
+USERS.id (goc)   1 -------- N DELETED_PROFILES.original_user_id
+
++-------------------------+
+|    DELETED_PROFILES     |
++-------------------------+
+| PK id                   |
+| original_user_id        | --> USERS.id (logic FK)
+| username                |
+| deleted_by              | --> USERS.id (logic FK)
+| deleted_at              |
+| profile_json            |
++-------------------------+
+```
+
+#### 3.1.5 Chuyển ERD sang lược đồ cơ sở dữ liệu quan hệ
+
+Quy tắc chuyển đổi được áp dụng:
+
+1. Mỗi thực thể mạnh chuyển thành một quan hệ (một bảng).
+2. Khóa chính của thực thể giữ nguyên làm PK của bảng.
+3. Quan hệ 1 - N chuyển bằng cách đưa khóa của phía 1 sang phía N làm FK logic.
+4. Các thuộc tính đơn trị giữ nguyên thành cột.
+5. Ràng buộc duy nhất nghiệp vụ chuyển thành UNIQUE hoặc UNIQUE INDEX.
+
+Kết quả thu được lược đồ quan hệ như sau:
+
+1. USERS(
+   id PK,
+   username UQ,
+   password_hash,
+   role,
+   approval_status,
+   account_number UQ,
+   balance,
+   full_name,
+   face_encoding,
+   is_locked,
+   email,
+   phone,
+   birth_date,
+   cccd_number UQ,
+   gender,
+   hometown,
+   residence,
+   nationality,
+   valid_until,
+   issued_date,
+   issued_place,
+   face_image_path,
+   cccd_front_image_path,
+   cccd_back_image_path,
+   created_at,
+   updated_at
+   )
+
+2. BANK_TRANSACTIONS(
+   id PK,
+   sender_user_id FK logic -> USERS.id,
+   receiver_user_id FK logic -> USERS.id,
+   sender_account_number,
+   receiver_account_number,
+   amount,
+   note,
+   created_at
+   )
+
+3. DELETED_PROFILES(
+   id PK,
+   original_user_id FK logic -> USERS.id,
+   username,
+   deleted_by FK logic -> USERS.id,
+   deleted_at,
+   profile_json
+   )
+
+#### 3.1.6 Ràng buộc toàn vẹn và chỉ mục quan trọng
+
+Để đảm bảo dữ liệu nhất quán với nghiệp vụ ngân hàng mô phỏng, các ràng buộc chính gồm:
+
+1. Toàn vẹn thực thể:
+
+- Mọi bảng đều có khóa chính id tự tăng, không trùng lặp.
+
+2. Toàn vẹn định danh tài khoản:
+
+- username là duy nhất toàn hệ thống.
+- account_number là duy nhất toàn hệ thống.
+- cccd_number là duy nhất toàn hệ thống (qua unique index).
+
+3. Toàn vẹn nghiệp vụ giao dịch:
+
+- amount bắt buộc dương trong tầng xử lý nghiệp vụ.
+- sender_user_id và receiver_user_id phải tồn tại ở thời điểm lập giao dịch (kiểm tra tại backend).
+
+4. Toàn vẹn trạng thái tài khoản:
+
+- approval_status phải nằm trong tập logic: pending, approved, rejected, locked.
+- Admin luôn được cưỡng bức về trạng thái approved trong bước khởi tạo và migration.
+
+5. Toàn vẹn lưu vết xóa:
+
+- Trước khi xóa bản ghi ở USERS, hệ thống phải lưu snapshot vào DELETED_PROFILES.
+
+#### 3.1.7 Nhận xét thiết kế ERD hiện tại
+
+Ưu điểm:
+
+1. Cấu trúc gọn, tập trung đúng 3 thực thể cốt lõi, phù hợp phạm vi prototype.
+2. Đáp ứng đầy đủ luồng nghiệp vụ chính: đăng ký, xác thực, chuyển khoản, quản trị xóa hồ sơ.
+3. Dễ mở rộng theo chiều ngang bằng cách bổ sung bảng mới (audit_logs, notifications, otp_sessions).
+
+Hạn chế:
+
+1. Khóa ngoại mới ở mức logic, chưa khai báo FK vật lý trong schema SQLite.
+2. Chưa có CHECK constraint cho amount > 0 và miền giá trị approval_status.
+3. Bảng USERS đang chứa nhiều thuộc tính KYC, có thể tách chuẩn hóa thành bảng user_kyc ở phiên bản sau.
+
+Định hướng cải tiến:
+
+1. Bổ sung FK vật lý và trigger đảm bảo toàn vẹn tham chiếu.
+2. Tách bảng KYC và bảng ảnh tài liệu để giảm độ rộng của USERS.
+3. Bổ sung bảng audit giao dịch quản trị để truy vết đầy đủ hơn.
+
+### 3.2 Yeu cau phi chuc nang
+
+- Hieu nang
+- Bao mat
+- Kha nang mo rong
+- Kha nang bao tri
+
+### 3.3 Kien truc tong the
+
+[Mo ta mo hinh frontend + unified backend + SQLite + uploads.]
+
+### 3.4 Thiet ke co so du lieu
+
+[Mo ta cac bang users, bank_transactions, deleted_profiles va moi quan he.]
+
+### 3.5 Luong nghiep vu chinh
+
+- Dang ky + OCR + doi chieu khuon mat CCCD
+- Dang nhap khuon mat + liveness
+- Chuyen khoan noi dia
+- Xoa user va luu archive
+
+---
+
+## Chuong 4. Trien khai he thong
+
+### 4.1 Cong nghe su dung
+
+- Frontend: HTML/CSS/JavaScript
+- Backend: FastAPI (Python)
+- AI/CV: face_recognition, OpenCV, EasyOCR/Google Vision
+- Database: SQLite
+
+### 4.2 Mo ta cac module chinh
+
+- Module dang ky
+- Module dang nhap
+- Module KYC/OCR
+- Module giao dich
+- Module admin
+
+### 4.3 Mo ta API tieu bieu
+
+[Chon 5-8 API quan trong, ghi muc dich, input, output, validate.]
+
+### 4.4 Huong dan chay thu he thong
